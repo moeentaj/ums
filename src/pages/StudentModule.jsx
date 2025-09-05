@@ -1,4 +1,4 @@
-// src/pages/StudentModule.jsx - Complete Student Management Module
+// src/pages/StudentModule.jsx - Updated Student Management Module with Real Components
 
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
@@ -16,27 +16,13 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
-// Import student components (these will be created in subsequent sessions)
+// Import student components
 const StudentList = React.lazy(() => import('../components/student/StudentList'));
-const StudentForm = React.lazy(() => import('components/student/StudentForm'));
-const StudentProfile = React.lazy(() => import('components/student/StudentProfile'));
-//const AdmissionsManagement = React.lazy(() => import('components/student/AdmissionsManagement'));
-//const AcademicRecords = React.lazy(() => import('components/student/AcademicRecords'));
-//const StudentReports = React.lazy(() => import('components/student/StudentReports'));
-
-// Placeholder components for now
-const PlaceholderComponent = ({ title, description }) => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-    <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-      <UserGroupIcon className="h-8 w-8 text-gray-400" />
-    </div>
-    <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-    <p className="text-gray-600 mb-4">{description}</p>
-    <div className="text-sm text-gray-500">
-      Component will be implemented in the next development session
-    </div>
-  </div>
-);
+const StudentForm = React.lazy(() => import('../components/student/StudentForm'));
+const StudentProfile = React.lazy(() => import('../components/student/StudentProfile'));
+const AdmissionsManagement = React.lazy(() => import('../components/student/AdmissionsManagement'));
+const AcademicRecords = React.lazy(() => import('../components/student/AcademicRecords'));
+const StudentReports = React.lazy(() => import('../components/student/StudentReports'));
 
 const StudentModule = () => {
   const { user, hasPermission } = useAuth();
@@ -54,295 +40,213 @@ const StudentModule = () => {
 
   // Get current tab from URL
   const currentPath = location.pathname.split('/').pop();
-  const activeTab = currentPath === 'students' ? 'directory' : currentPath;
+  const activeTab = currentPath === 'students' ? 'list' : 
+                   currentPath === 'add-student' ? 'add' :
+                   currentPath === 'admissions' ? 'admissions' :
+                   currentPath === 'academic-records' ? 'records' :
+                   currentPath === 'reports' ? 'reports' : 'list';
 
   // Permission checks
-  const canViewStudents = hasPermission('students') || hasPermission('all');
-  const canManageStudents = hasPermission('all') || user?.role === 'admin' || user?.role === 'registrar';
-  const canViewAcademics = hasPermission('academics') || hasPermission('all') || user?.role === 'faculty';
-  const canViewReports = hasPermission('all') || user?.role === 'admin';
+  const canManageStudents = hasPermission('students.write') || user?.role === 'admin' || user?.role === 'registrar';
+  const canViewAcademics = hasPermission('academics.read') || user?.role === 'admin' || user?.role === 'faculty';
+  const canViewReports = hasPermission('reports.read') || user?.role === 'admin';
 
-  // Tab configuration with role-based visibility
-  const tabs = [
-    {
-      id: 'directory',
-      name: 'Student Directory',
-      icon: UserGroupIcon,
-      path: '/students',
-      visible: canViewStudents,
-      description: 'View and manage student information'
-    },
-    {
-      id: 'add-student',
-      name: 'Add Student',
-      icon: UserPlusIcon,
-      path: '/students/add-student',
-      visible: canManageStudents,
-      description: 'Register new student'
-    },
-    {
-      id: 'admissions',
-      name: 'Admissions',
-      icon: AcademicCapIcon,
-      path: '/students/admissions',
-      visible: canManageStudents,
-      description: 'Manage student applications'
-    },
-    {
-      id: 'academic-records',
-      name: 'Academic Records',
-      icon: DocumentTextIcon,
-      path: '/students/academic-records',
-      visible: canViewAcademics,
-      description: 'View grades and transcripts'
-    },
-    {
-      id: 'reports',
-      name: 'Reports',
-      icon: ChartBarIcon,
-      path: '/students/reports',
-      visible: canViewReports,
-      description: 'Student analytics and reports'
-    }
-  ].filter(tab => tab.visible);
-
+  // Load student statistics
   useEffect(() => {
-    const initializeModule = async () => {
+    const loadStudentStats = async () => {
       try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 500));
+        setLoading(true);
+        await new Promise(resolve => setTimeout(resolve, 600));
         
-        // Calculate student statistics
-        const totalStudents = getTotalEnrollment();
-        const activeStudents = getStudentsByStatus('Active').length;
-        const inactiveStudents = getStudentsByStatus('Inactive').length;
-        const probationStudents = mockData.students.filter(s => s.gpa < 2.0).length;
-
+        const students = mockData.students;
         setStudentStats({
-          total: totalStudents,
-          active: activeStudents,
-          inactive: inactiveStudents,
-          probation: probationStudents
+          total: students.length,
+          active: students.filter(s => s.status === 'Active').length,
+          inactive: students.filter(s => s.status === 'Inactive').length,
+          probation: students.filter(s => s.status === 'Probation').length
         });
-
-        setLoading(false);
       } catch (error) {
-        console.error('Error initializing student module:', error);
+        console.error('Error loading student stats:', error);
+      } finally {
         setLoading(false);
       }
     };
 
-    if (canViewStudents) {
-      initializeModule();
-    } else {
-      setLoading(false);
+    loadStudentStats();
+  }, []);
+
+  // Navigation items
+  const navigationItems = [
+    {
+      id: 'list',
+      path: '/students',
+      name: 'Student Directory',
+      icon: UserGroupIcon,
+      description: 'Search and manage student records',
+      permission: 'students.read'
+    },
+    {
+      id: 'add',
+      path: '/students/add-student',
+      name: 'Add Student',
+      icon: UserPlusIcon,
+      description: 'Register new students',
+      permission: 'students.write'
+    },
+    {
+      id: 'admissions',
+      path: '/students/admissions',
+      name: 'Admissions',
+      icon: AcademicCapIcon,
+      description: 'Manage applications and admissions',
+      permission: 'students.write'
+    },
+    {
+      id: 'records',
+      path: '/students/academic-records',
+      name: 'Academic Records',
+      icon: DocumentTextIcon,
+      description: 'View grades and transcripts',
+      permission: 'academics.read'
+    },
+    {
+      id: 'reports',
+      path: '/students/reports',
+      name: 'Reports & Analytics',
+      icon: ChartBarIcon,
+      description: 'Generate student reports',
+      permission: 'reports.read'
     }
-  }, [canViewStudents]);
+  ];
 
-  // Redirect to first available tab if user lands on base path
-  useEffect(() => {
-    if (location.pathname === '/students' && tabs.length > 0) {
-      navigate(tabs[0].path, { replace: true });
-    }
-  }, [location.pathname, navigate, tabs]);
-
-  // Handle search functionality
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Navigate to directory tab with search query
-      navigate('/students', { state: { searchQuery } });
-    }
-  };
-
-  // Access control - show access denied if no permissions
-  if (!canViewStudents) {
-    return (
-      <div className="max-w-md mx-auto mt-8">
-        <div className="bg-white rounded-lg shadow-sm border border-red-200 p-8 text-center">
-          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <ExclamationTriangleIcon className="h-8 w-8 text-red-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600 mb-4">
-            You don't have permission to access the Student Management module.
-          </p>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-150"
-          >
-            Return to Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        {/* Header skeleton */}
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-        </div>
-
-        {/* Stats skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-white p-6 rounded-lg shadow-sm border animate-pulse">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-gray-200 rounded-lg mr-4"></div>
-                <div className="flex-1">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-6 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Content skeleton */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="h-16 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Filter navigation items based on permissions
+  const visibleNavItems = navigationItems.filter(item => 
+    hasPermission(item.permission) || 
+    user?.role === 'admin'
+  );
 
   return (
     <div className="space-y-6">
-      {/* Module Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Student Management
-            </h1>
-            <nav className="text-sm text-gray-500">
-              <span>University Management</span> 
-              <span className="mx-2">/</span> 
-              <span className="text-blue-600 font-medium">Students</span>
-            </nav>
+      {/* Header with Statistics */}
+      <div className="bg-white shadow-sm rounded-lg p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Student Management</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Manage student enrollment, academic records, and reporting
+            </p>
           </div>
           
-          {/* Header Actions */}
-          <div className="flex items-center space-x-4 mt-4 sm:mt-0">
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="relative">
-              <div className="relative">
-                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search students..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </form>
-
-            {/* Filter Button */}
-            <button
-              onClick={() => setFilterOpen(!filterOpen)}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-150"
-            >
-              <FunnelIcon className="h-4 w-4 mr-2" />
-              Filter
-            </button>
-
-            {/* Export Button */}
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Quick search students..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    navigate('/students', { state: { searchQuery } });
+                  }
+                }}
+              />
+            </div>
+            
             {canManageStudents && (
-              <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150">
-                <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                Export
+              <button
+                onClick={() => navigate('/students/add-student')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <UserPlusIcon className="h-4 w-4 mr-2" />
+                Add Student
               </button>
             )}
           </div>
         </div>
+
+        {/* Statistics Cards */}
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[
+              {
+                title: 'Total Students',
+                value: studentStats.total,
+                icon: UserGroupIcon,
+                color: 'blue',
+                change: '+5.2%'
+              },
+              {
+                title: 'Active Enrollment',
+                value: studentStats.active,
+                icon: UserGroupIcon,
+                color: 'green',
+                change: '+2.1%'
+              },
+              {
+                title: 'Academic Probation',
+                value: studentStats.probation,
+                icon: ExclamationTriangleIcon,
+                color: 'yellow',
+                change: '-1.3%'
+              },
+              {
+                title: 'Inactive Students',
+                value: studentStats.inactive,
+                icon: UserGroupIcon,
+                color: 'red',
+                change: '+0.8%'
+              }
+            ].map((stat) => {
+              const IconComponent = stat.icon;
+              return (
+                <div key={stat.title} className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className={`p-2 bg-${stat.color}-100 rounded-md`}>
+                      <IconComponent className={`h-6 w-6 text-${stat.color}-600`} />
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-sm font-medium text-gray-500">{stat.title}</h3>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
+                        <span className={`text-xs font-medium px-2 py-1 rounded ${
+                          stat.change.startsWith('+') 
+                            ? 'text-green-800 bg-green-100' 
+                            : 'text-red-800 bg-red-100'
+                        }`}>
+                          {stat.change}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Student Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-              <UserGroupIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Students</p>
-              <p className="text-2xl font-bold text-gray-900">{studentStats.total.toLocaleString()}</p>
-              <p className="text-sm text-green-600">↑ 12% from last year</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
-              <UserGroupIcon className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active Students</p>
-              <p className="text-2xl font-bold text-gray-900">{studentStats.active.toLocaleString()}</p>
-              <p className="text-sm text-gray-500">{Math.round((studentStats.active / studentStats.total) * 100)}% of total</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
-              <AcademicCapIcon className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">New Admissions</p>
-              <p className="text-2xl font-bold text-gray-900">127</p>
-              <p className="text-sm text-blue-600">Fall 2025 semester</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-4">
-              <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Academic Probation</p>
-              <p className="text-2xl font-bold text-gray-900">{studentStats.probation}</p>
-              <p className="text-sm text-red-600">Requires attention</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      {/* Navigation Tabs */}
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6" aria-label="Tabs">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id || (activeTab === '' && tab.id === 'directory');
+            {visibleNavItems.map((item) => {
+              const IconComponent = item.icon;
+              const isActive = activeTab === item.id;
               
               return (
                 <NavLink
-                  key={tab.id}
-                  to={tab.path}
+                  key={item.id}
+                  to={item.path}
                   className={`${
                     isActive
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-150 flex items-center`}
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
                 >
-                  <Icon className="h-4 w-4 mr-2" />
-                  {tab.name}
+                  <IconComponent className="h-4 w-4" />
+                  <span>{item.name}</span>
                 </NavLink>
               );
             })}
@@ -351,26 +255,20 @@ const StudentModule = () => {
 
         {/* Tab Content */}
         <div className="p-6">
-          <React.Suspense fallback={
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2 text-gray-600">Loading...</span>
-            </div>
-          }>
+          <React.Suspense 
+            fallback={
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-gray-600">Loading...</span>
+              </div>
+            }
+          >
             <Routes>
-              <Route index element={
-                <PlaceholderComponent 
-                  title="Student Directory"
-                  description="Comprehensive list of all students with search, filter, and management capabilities."
-                />
-              } />
+              <Route path="/" element={<StudentList />} />
               
-              <Route path="add-student" element={
+              <Route path="/add-student" element={
                 canManageStudents ? (
-                  <PlaceholderComponent 
-                    title="Add New Student"
-                    description="Register a new student with personal information, academic program, and enrollment details."
-                  />
+                  <StudentForm />
                 ) : (
                   <div className="text-center p-8">
                     <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -380,12 +278,9 @@ const StudentModule = () => {
                 )
               } />
               
-              <Route path="admissions" element={
+              <Route path="/admissions" element={
                 canManageStudents ? (
-                  <PlaceholderComponent 
-                    title="Admissions Management"
-                    description="Review and process student applications, manage admission decisions and enrollment."
-                  />
+                  <AdmissionsManagement />
                 ) : (
                   <div className="text-center p-8">
                     <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -395,12 +290,9 @@ const StudentModule = () => {
                 )
               } />
               
-              <Route path="academic-records" element={
+              <Route path="/academic-records" element={
                 canViewAcademics ? (
-                  <PlaceholderComponent 
-                    title="Academic Records"
-                    description="View and manage student grades, transcripts, and academic performance data."
-                  />
+                  <AcademicRecords />
                 ) : (
                   <div className="text-center p-8">
                     <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -410,12 +302,9 @@ const StudentModule = () => {
                 )
               } />
               
-              <Route path="reports" element={
+              <Route path="/reports" element={
                 canViewReports ? (
-                  <PlaceholderComponent 
-                    title="Student Reports"
-                    description="Generate analytics and reports on student enrollment, performance, and demographics."
-                  />
+                  <StudentReports />
                 ) : (
                   <div className="text-center p-8">
                     <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -425,11 +314,17 @@ const StudentModule = () => {
                 )
               } />
               
-              <Route path="profile/:studentId" element={
-                <PlaceholderComponent 
-                  title="Student Profile"
-                  description="Detailed view of individual student information, academic history, and records."
-                />
+              <Route path="/profile/:studentId" element={<StudentProfile />} />
+              <Route path="/edit/:studentId" element={
+                canManageStudents ? (
+                  <StudentForm />
+                ) : (
+                  <div className="text-center p-8">
+                    <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900">Access Denied</h3>
+                    <p className="text-gray-600">You don't have permission to edit students.</p>
+                  </div>
+                )
               } />
             </Routes>
           </React.Suspense>
@@ -442,15 +337,27 @@ const StudentModule = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           <div>
             <h4 className="font-medium text-blue-800">Student Directory</h4>
-            <p className="text-blue-700">Search, filter, and manage student records</p>
+            <p className="text-blue-700">Search, filter, and manage comprehensive student records</p>
           </div>
           <div>
             <h4 className="font-medium text-blue-800">Academic Tracking</h4>
-            <p className="text-blue-700">Monitor grades, GPA, and academic progress</p>
+            <p className="text-blue-700">Monitor grades, GPA, and academic progress in real-time</p>
           </div>
           <div>
-            <h4 className="font-medium text-blue-800">Enrollment Management</h4>
-            <p className="text-blue-700">Handle admissions and course registration</p>
+            <h4 className="font-medium text-blue-800">Admissions Management</h4>
+            <p className="text-blue-700">Process applications and manage enrollment decisions</p>
+          </div>
+          <div>
+            <h4 className="font-medium text-blue-800">Reporting & Analytics</h4>
+            <p className="text-blue-700">Generate detailed reports on enrollment and performance</p>
+          </div>
+          <div>
+            <h4 className="font-medium text-blue-800">Record Management</h4>
+            <p className="text-blue-700">Maintain complete academic transcripts and documents</p>
+          </div>
+          <div>
+            <h4 className="font-medium text-blue-800">Data Export</h4>
+            <p className="text-blue-700">Export student data in multiple formats for analysis</p>
           </div>
         </div>
       </div>
