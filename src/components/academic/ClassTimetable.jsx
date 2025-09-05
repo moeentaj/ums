@@ -19,7 +19,10 @@ import {
   Search,
   ArrowLeft,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Settings,
+  Save,
+  X
 } from 'lucide-react';
 
 const ClassTimetable = () => {
@@ -29,18 +32,24 @@ const ClassTimetable = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('week'); // week, day, month
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedDepartment, setSelectedDepartment] = useState('all');
-  const [selectedRoom, setSelectedRoom] = useState('all');
+  const [filters, setFilters] = useState({
+    department: 'all',
+    room: 'all',
+    instructor: 'all'
+  });
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [conflicts, setConflicts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Time slots for the schedule grid
   const timeSlots = [
     '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
     '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM',
     '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM',
-    '5:00 PM', '5:30 PM', '6:00 PM'
+    '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM', '7:00 PM'
   ];
 
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -66,121 +75,141 @@ const ClassTimetable = () => {
 
   // Generate comprehensive schedule data
   const generateScheduleData = () => {
-    const scheduleData = [];
-    const courses = mockData.courses;
-    
-    courses.forEach((course, index) => {
-      if (course.schedule && course.schedule.days) {
-        course.schedule.days.forEach(day => {
-          scheduleData.push({
-            id: `schedule_${index}_${day}`,
-            courseId: course.id,
-            courseCode: course.code,
-            courseName: course.name,
-            instructor: course.instructor,
-            day: day,
-            startTime: course.schedule.time?.split(' - ')[0] || '9:00 AM',
-            endTime: course.schedule.time?.split(' - ')[1] || '10:00 AM',
-            duration: course.schedule.duration || 60,
-            room: course.classroom,
-            department: course.department,
-            enrolled: course.enrolled,
-            capacity: course.capacity,
-            type: 'lecture',
-            status: 'confirmed',
-            semester: course.semester,
-            color: getColorForDepartment(course.department)
-          });
-        });
-      }
-    });
-
-    // Add some additional events (labs, seminars, etc.)
-    const additionalEvents = [
-      {
-        id: 'lab_1',
-        courseCode: 'CS-101L',
-        courseName: 'Computer Science Lab',
-        instructor: 'Dr. Sarah Wilson',
-        day: 'Wednesday',
-        startTime: '2:00 PM',
-        endTime: '4:00 PM',
-        duration: 120,
-        room: 'Lab 201',
-        department: 'Computer Science',
-        type: 'lab',
-        status: 'confirmed',
-        color: '#3B82F6'
-      },
-      {
-        id: 'seminar_1',
-        courseCode: 'BUS-SEM',
-        courseName: 'Business Leadership Seminar',
-        instructor: 'Prof. Michael Brown',
-        day: 'Friday',
-        startTime: '1:00 PM',
-        endTime: '2:30 PM',
-        duration: 90,
-        room: 'Conference Room A',
-        department: 'Business Administration',
-        type: 'seminar',
-        status: 'tentative',
-        color: '#10B981'
-      }
+    const courses = [
+      { code: 'CS-101', name: 'Introduction to Computer Science', instructor: 'Dr. Sarah Wilson', department: 'Computer Science' },
+      { code: 'CS-201', name: 'Data Structures', instructor: 'Dr. Sarah Wilson', department: 'Computer Science' },
+      { code: 'MATH-101', name: 'Calculus I', instructor: 'Dr. Emily Rodriguez', department: 'Mathematics' },
+      { code: 'MATH-201', name: 'Linear Algebra', instructor: 'Dr. Emily Rodriguez', department: 'Mathematics' },
+      { code: 'BUS-101', name: 'Introduction to Business', instructor: 'Dr. Michael Chen', department: 'Business' },
+      { code: 'BUS-301', name: 'Strategic Management', instructor: 'Dr. Michael Chen', department: 'Business' },
+      { code: 'ENG-101', name: 'English Composition', instructor: 'Prof. Lisa Anderson', department: 'English' },
+      { code: 'ENG-201', name: 'Literature Analysis', instructor: 'Prof. Lisa Anderson', department: 'English' }
     ];
 
-    return [...scheduleData, ...additionalEvents];
+    const rooms = ['Room 101', 'Room 102', 'Room 201', 'Room 202', 'Lab A', 'Lab B', 'Auditorium', 'Conference Room'];
+    const timeSlotPairs = [
+      { start: '9:00 AM', end: '10:30 AM' },
+      { start: '10:30 AM', end: '12:00 PM' },
+      { start: '1:00 PM', end: '2:30 PM' },
+      { start: '2:30 PM', end: '4:00 PM' },
+      { start: '4:00 PM', end: '5:30 PM' }
+    ];
+
+    const scheduleData = [];
+    let idCounter = 1;
+
+    courses.forEach(course => {
+      // Generate 2-3 sessions per week for each course
+      const sessionsPerWeek = Math.random() > 0.5 ? 3 : 2;
+      const dayIndices = sessionsPerWeek === 3 ? [0, 2, 4] : [1, 3]; // MWF or TTh
+      
+      dayIndices.forEach(dayIndex => {
+        const timeSlot = timeSlotPairs[Math.floor(Math.random() * timeSlotPairs.length)];
+        const room = rooms[Math.floor(Math.random() * rooms.length)];
+        
+        scheduleData.push({
+          id: `SCH${String(idCounter++).padStart(3, '0')}`,
+          courseCode: course.code,
+          courseName: course.name,
+          instructor: course.instructor,
+          department: course.department,
+          dayOfWeek: weekDays[dayIndex],
+          startTime: timeSlot.start,
+          endTime: timeSlot.end,
+          room: room,
+          capacity: Math.floor(Math.random() * 50) + 20, // 20-70
+          enrolled: Math.floor(Math.random() * 40) + 15, // 15-55
+          semester: 'Fall 2025',
+          credits: 3,
+          type: 'Lecture',
+          status: 'Active',
+          color: getRandomColor(),
+          recurring: true,
+          notes: ''
+        });
+      });
+    });
+
+    return scheduleData;
   };
 
-  // Get color based on department
-  const getColorForDepartment = (department) => {
-    const colors = {
-      'Computer Science': '#3B82F6',
-      'Business Administration': '#10B981',
-      'Engineering': '#F59E0B',
-      'Sciences': '#8B5CF6',
-      'Arts': '#EC4899',
-      'Mathematics': '#6366F1'
-    };
-    return colors[department] || '#6B7280';
+  // Generate random colors for courses
+  const getRandomColor = () => {
+    const colors = [
+      'bg-blue-100 border-blue-500 text-blue-800',
+      'bg-green-100 border-green-500 text-green-800',
+      'bg-purple-100 border-purple-500 text-purple-800',
+      'bg-yellow-100 border-yellow-500 text-yellow-800',
+      'bg-red-100 border-red-500 text-red-800',
+      'bg-indigo-100 border-indigo-500 text-indigo-800',
+      'bg-pink-100 border-pink-500 text-pink-800',
+      'bg-orange-100 border-orange-500 text-orange-800'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
   };
 
   // Detect scheduling conflicts
   const detectConflicts = (scheduleData) => {
     const conflicts = [];
     
-    for (let i = 0; i < scheduleData.length; i++) {
-      for (let j = i + 1; j < scheduleData.length; j++) {
-        const event1 = scheduleData[i];
-        const event2 = scheduleData[j];
-        
-        if (event1.day === event2.day && event1.room === event2.room) {
-          const start1 = convertTimeToMinutes(event1.startTime);
-          const end1 = convertTimeToMinutes(event1.endTime);
-          const start2 = convertTimeToMinutes(event2.startTime);
-          const end2 = convertTimeToMinutes(event2.endTime);
+    // Group by day and check for time overlaps
+    const dayGroups = scheduleData.reduce((acc, schedule) => {
+      if (!acc[schedule.dayOfWeek]) acc[schedule.dayOfWeek] = [];
+      acc[schedule.dayOfWeek].push(schedule);
+      return acc;
+    }, {});
+
+    Object.keys(dayGroups).forEach(day => {
+      const daySchedules = dayGroups[day];
+      
+      for (let i = 0; i < daySchedules.length; i++) {
+        for (let j = i + 1; j < daySchedules.length; j++) {
+          const schedule1 = daySchedules[i];
+          const schedule2 = daySchedules[j];
           
-          if ((start1 < end2 && end1 > start2)) {
+          // Check for room conflicts
+          if (schedule1.room === schedule2.room && timesOverlap(schedule1, schedule2)) {
             conflicts.push({
-              id: `conflict_${i}_${j}`,
-              event1: event1,
-              event2: event2,
-              type: 'room_conflict',
+              id: `CONFLICT_${conflicts.length + 1}`,
+              type: 'Room Conflict',
+              description: `Room ${schedule1.room} is double-booked`,
+              schedules: [schedule1, schedule2],
+              severity: 'high'
+            });
+          }
+          
+          // Check for instructor conflicts
+          if (schedule1.instructor === schedule2.instructor && timesOverlap(schedule1, schedule2)) {
+            conflicts.push({
+              id: `CONFLICT_${conflicts.length + 1}`,
+              type: 'Instructor Conflict',
+              description: `${schedule1.instructor} is scheduled for multiple classes`,
+              schedules: [schedule1, schedule2],
               severity: 'high'
             });
           }
         }
       }
-    }
-    
+    });
+
     return conflicts;
+  };
+
+  // Check if two time slots overlap
+  const timesOverlap = (schedule1, schedule2) => {
+    const start1 = convertTimeToMinutes(schedule1.startTime);
+    const end1 = convertTimeToMinutes(schedule1.endTime);
+    const start2 = convertTimeToMinutes(schedule2.startTime);
+    const end2 = convertTimeToMinutes(schedule2.endTime);
+    
+    return start1 < end2 && start2 < end1;
   };
 
   // Convert time string to minutes for comparison
   const convertTimeToMinutes = (timeStr) => {
     const [time, period] = timeStr.split(' ');
     const [hours, minutes] = time.split(':').map(Number);
-    let totalMinutes = hours * 60 + (minutes || 0);
+    let totalMinutes = hours * 60 + minutes;
     
     if (period === 'PM' && hours !== 12) {
       totalMinutes += 12 * 60;
@@ -191,40 +220,78 @@ const ClassTimetable = () => {
     return totalMinutes;
   };
 
-  // Get events for a specific day
-  const getEventsForDay = (day) => {
-    return schedules.filter(schedule => schedule.day === day);
-  };
-
-  // Get unique departments and rooms for filtering
-  const departments = [...new Set(schedules.map(s => s.department))];
-  const rooms = [...new Set(schedules.map(s => s.room))];
-
-  // Filter schedules based on selections
+  // Filter schedules
   const filteredSchedules = schedules.filter(schedule => {
-    const matchesDepartment = selectedDepartment === 'all' || schedule.department === selectedDepartment;
-    const matchesRoom = selectedRoom === 'all' || schedule.room === selectedRoom;
-    return matchesDepartment && matchesRoom;
+    const matchesSearch = schedule.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         schedule.courseCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         schedule.instructor.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesDepartment = filters.department === 'all' || schedule.department === filters.department;
+    const matchesRoom = filters.room === 'all' || schedule.room === filters.room;
+    const matchesInstructor = filters.instructor === 'all' || schedule.instructor === filters.instructor;
+    
+    return matchesSearch && matchesDepartment && matchesRoom && matchesInstructor;
   });
 
-  // Navigation functions
+  // Get unique values for filters
+  const filterOptions = React.useMemo(() => {
+    const departments = [...new Set(schedules.map(s => s.department))];
+    const rooms = [...new Set(schedules.map(s => s.room))];
+    const instructors = [...new Set(schedules.map(s => s.instructor))];
+    
+    return {
+      departments: departments.sort(),
+      rooms: rooms.sort(),
+      instructors: instructors.sort()
+    };
+  }, [schedules]);
+
+  // Handle schedule actions
+  const handleAddSchedule = () => {
+    if (!hasPermission('schedule_write')) {
+      alert('You do not have permission to add schedules.');
+      return;
+    }
+    setSelectedEvent(null);
+    setShowAddModal(true);
+  };
+
+  const handleEditSchedule = (schedule) => {
+    if (!hasPermission('schedule_write')) {
+      alert('You do not have permission to edit schedules.');
+      return;
+    }
+    setSelectedEvent(schedule);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteSchedule = (scheduleId) => {
+    if (!hasPermission('schedule_delete')) {
+      alert('You do not have permission to delete schedules.');
+      return;
+    }
+    if (window.confirm('Are you sure you want to delete this schedule?')) {
+      setSchedules(schedules.filter(s => s.id !== scheduleId));
+    }
+  };
+
+  const handleViewSchedule = (schedule) => {
+    setSelectedEvent(schedule);
+    setShowDetailsModal(true);
+  };
+
+  // Navigate weeks
   const navigateWeek = (direction) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + (direction * 7));
     setSelectedDate(newDate);
   };
 
-  const navigateDay = (direction) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + direction);
-    setSelectedDate(newDate);
-  };
-
-  // Get current week dates
-  const getCurrentWeekDates = () => {
+  // Get week dates
+  const getWeekDates = () => {
     const startOfWeek = new Date(selectedDate);
     const day = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Monday as first day
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Monday as start
     startOfWeek.setDate(diff);
     
     return weekDays.map((_, index) => {
@@ -234,135 +301,73 @@ const ClassTimetable = () => {
     });
   };
 
-  // Event component for calendar grid
-  const EventBlock = ({ event, style }) => (
-    <div
-      className={`absolute rounded-lg p-2 text-white text-xs cursor-pointer hover:opacity-90 transition-opacity ${
-        event.status === 'tentative' ? 'opacity-70 border-2 border-dashed' : ''
-      }`}
-      style={{
-        backgroundColor: event.color,
-        ...style
-      }}
-      onClick={() => setSelectedEvent(event)}
-      title={`${event.courseName} - ${event.instructor}`}
-    >
-      <div className="font-semibold truncate">{event.courseCode}</div>
-      <div className="truncate text-xs opacity-90">{event.room}</div>
-      {event.type !== 'lecture' && (
-        <div className="text-xs opacity-75 capitalize">{event.type}</div>
-      )}
-    </div>
-  );
+  // Get schedules for a specific time slot
+  const getScheduleForTimeSlot = (day, timeSlot) => {
+    return filteredSchedules.find(schedule => 
+      schedule.dayOfWeek === day && schedule.startTime === timeSlot
+    );
+  };
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="animate-pulse bg-gray-200 h-8 w-48 rounded"></div>
-          <div className="animate-pulse bg-gray-200 h-10 w-32 rounded"></div>
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="animate-pulse space-y-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
         </div>
-        <div className="animate-pulse bg-gray-200 h-96 rounded-lg"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with Navigation and Filters */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-        <div className="flex items-center space-x-4">
-          {/* View Mode Toggle */}
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-            <button
-              onClick={() => setViewMode('day')}
-              className={`px-3 py-2 text-sm font-medium ${
-                viewMode === 'day' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Day
-            </button>
-            <button
-              onClick={() => setViewMode('week')}
-              className={`px-3 py-2 text-sm font-medium ${
-                viewMode === 'week' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Week
-            </button>
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Class Timetable</h2>
+            <p className="text-gray-600">Manage class schedules and prevent conflicts</p>
           </div>
-
-          {/* Date Navigation */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => viewMode === 'week' ? navigateWeek(-1) : navigateDay(-1)}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            
-            <div className="px-4 py-2 bg-gray-100 rounded-lg">
-              <span className="font-medium">
-                {viewMode === 'week' 
-                  ? `Week of ${getCurrentWeekDates()[0].toLocaleDateString()}`
-                  : selectedDate.toLocaleDateString()
-                }
-              </span>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewMode('week')}
+                className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                  viewMode === 'week' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setViewMode('day')}
+                className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                  viewMode === 'day' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Day
+              </button>
             </div>
-            
-            <button
-              onClick={() => viewMode === 'week' ? navigateWeek(1) : navigateDay(1)}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              <ArrowRight className="h-4 w-4" />
+            <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Export
             </button>
-            
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
-            >
-              Today
-            </button>
+            {hasPermission('schedule_write') && (
+              <button
+                onClick={handleAddSchedule}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Schedule
+              </button>
+            )}
           </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          {/* Filters */}
-          <select
-            value={selectedDepartment}
-            onChange={(e) => setSelectedDepartment(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Departments</option>
-            {departments.map(dept => (
-              <option key={dept} value={dept}>{dept}</option>
-            ))}
-          </select>
-
-          <select
-            value={selectedRoom}
-            onChange={(e) => setSelectedRoom(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Rooms</option>
-            {rooms.map(room => (
-              <option key={room} value={room}>{room}</option>
-            ))}
-          </select>
-
-          {/* Actions */}
-          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </button>
-          
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Event
-          </button>
         </div>
       </div>
 
@@ -372,14 +377,98 @@ const ClassTimetable = () => {
           <div className="flex items-start">
             <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 mr-3" />
             <div>
-              <h3 className="text-sm font-medium text-red-800">Schedule Conflicts Detected</h3>
-              <p className="text-sm text-red-700 mt-1">
-                {conflicts.length} scheduling conflict{conflicts.length > 1 ? 's' : ''} found. 
-                <button className="ml-1 text-red-800 underline hover:text-red-900">
-                  View details
-                </button>
+              <h3 className="text-sm font-medium text-red-800">Scheduling Conflicts Detected</h3>
+              <div className="mt-2 space-y-1">
+                {conflicts.slice(0, 3).map(conflict => (
+                  <p key={conflict.id} className="text-sm text-red-700">
+                    • {conflict.description}
+                  </p>
+                ))}
+                {conflicts.length > 3 && (
+                  <p className="text-sm text-red-700">
+                    • And {conflicts.length - 3} more conflicts...
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters and Search */}
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search courses, instructors..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <select
+              value={filters.department}
+              onChange={(e) => setFilters({...filters, department: e.target.value})}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Departments</option>
+              {filterOptions.departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+            <select
+              value={filters.room}
+              onChange={(e) => setFilters({...filters, room: e.target.value})}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Rooms</option>
+              {filterOptions.rooms.map(room => (
+                <option key={room} value={room}>{room}</option>
+              ))}
+            </select>
+            <select
+              value={filters.instructor}
+              onChange={(e) => setFilters({...filters, instructor: e.target.value})}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Instructors</option>
+              {filterOptions.instructors.map(instructor => (
+                <option key={instructor} value={instructor}>{instructor}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Week Navigation */}
+      {viewMode === 'week' && (
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigateWeek(-1)}
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Week of {getWeekDates()[0].toLocaleDateString()} - {getWeekDates()[4].toLocaleDateString()}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {getWeekDates()[0].toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </p>
             </div>
+            <button
+              onClick={() => navigateWeek(1)}
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <ArrowRight className="h-5 w-5" />
+            </button>
           </div>
         </div>
       )}
@@ -388,193 +477,570 @@ const ClassTimetable = () => {
       {viewMode === 'week' ? (
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           <div className="overflow-x-auto">
-            <div className="min-w-[800px]">
-              {/* Header */}
-              <div className="grid grid-cols-6 border-b border-gray-200">
-                <div className="p-4 bg-gray-50 font-medium text-gray-700">Time</div>
-                {weekDays.map((day, index) => {
-                  const date = getCurrentWeekDates()[index];
-                  return (
-                    <div key={day} className="p-4 bg-gray-50 text-center">
-                      <div className="font-medium text-gray-700">{day}</div>
-                      <div className="text-sm text-gray-500">{date.getDate()}</div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Time slots */}
-              <div className="relative">
-                {timeSlots.map((time, timeIndex) => (
-                  <div key={time} className="grid grid-cols-6 border-b border-gray-100 min-h-[60px]">
-                    <div className="p-3 bg-gray-50 text-sm text-gray-600 font-medium border-r border-gray-200">
-                      {time}
-                    </div>
-                    
-                    {weekDays.map(day => {
-                      const dayEvents = filteredSchedules.filter(event => 
-                        event.day === day && event.startTime === time
-                      );
-                      
-                      return (
-                        <div key={`${day}-${time}`} className="relative border-r border-gray-100 p-1">
-                          {dayEvents.map(event => (
-                            <EventBlock
-                              key={event.id}
-                              event={event}
-                              style={{
-                                top: '4px',
-                                left: '4px',
-                                right: '4px',
-                                height: `${Math.max(event.duration / 30 * 30 - 8, 46)}px`
-                              }}
-                            />
-                          ))}
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Time
+                  </th>
+                  {weekDays.map((day, index) => {
+                    const date = getWeekDates()[index];
+                    return (
+                      <th key={day} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+                        <div>{day}</div>
+                        <div className="text-gray-400 font-normal">
+                          {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {timeSlots.map((timeSlot) => (
+                  <tr key={timeSlot} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 bg-gray-50">
+                      {timeSlot}
+                    </td>
+                    {weekDays.map((day) => {
+                      const schedule = getScheduleForTimeSlot(day, timeSlot);
+                      return (
+                        <td key={day} className="px-2 py-2 text-center relative">
+                          {schedule ? (
+                            <div 
+                              className={`${schedule.color} border-l-4 rounded-lg p-2 text-xs cursor-pointer hover:shadow-md transition-shadow`}
+                              onClick={() => handleViewSchedule(schedule)}
+                            >
+                              <div className="font-semibold truncate">{schedule.courseCode}</div>
+                              <div className="truncate">{schedule.instructor.split(' ').slice(-1)[0]}</div>
+                              <div className="text-xs opacity-75">{schedule.room}</div>
+                            </div>
+                          ) : (
+                            <div 
+                              className="h-16 flex items-center justify-center text-gray-400 hover:bg-gray-100 rounded cursor-pointer"
+                              onClick={() => {
+                                if (hasPermission('schedule_write')) {
+                                  // Set up for adding a new schedule at this time slot
+                                  setSelectedEvent({ dayOfWeek: day, startTime: timeSlot });
+                                  setShowAddModal(true);
+                                }
+                              }}
+                            >
+                              {hasPermission('schedule_write') && (
+                                <Plus className="h-4 w-4" />
+                              )}
+                            </div>
+                          )}
+                        </td>
                       );
                     })}
-                  </div>
+                  </tr>
                 ))}
-              </div>
-            </div>
+              </tbody>
+            </table>
           </div>
         </div>
       ) : (
-        // Day View
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {selectedDate.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </h3>
-            
-            <div className="space-y-3">
-              {getEventsForDay(weekDays[selectedDate.getDay() - 1]).map(event => (
-                <div 
-                  key={event.id}
-                  className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  onClick={() => setSelectedEvent(event)}
-                >
-                  <div 
-                    className="w-4 h-4 rounded-full mr-4"
-                    style={{ backgroundColor: event.color }}
-                  ></div>
-                  
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">{event.courseName}</div>
-                    <div className="text-sm text-gray-600">{event.courseCode} • {event.instructor}</div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">
-                      {event.startTime} - {event.endTime}
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="text-center py-12">
+            <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Day View</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Day view interface would be implemented here with detailed hourly schedule view
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule List */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="p-6 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">All Schedules</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Instructor</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrollment</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredSchedules.map((schedule) => (
+                <tr key={schedule.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{schedule.courseCode}</div>
+                      <div className="text-sm text-gray-500">{schedule.courseName}</div>
                     </div>
-                    <div className="text-sm text-gray-600">{event.room}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{schedule.instructor}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{schedule.dayOfWeek}</div>
+                    <div className="text-sm text-gray-500">{schedule.startTime} - {schedule.endTime}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{schedule.room}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{schedule.enrolled}/{schedule.capacity}</div>
+                    <div className="text-xs text-gray-500">
+                      {Math.round((schedule.enrolled / schedule.capacity) * 100)}% full
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      schedule.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {schedule.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleViewSchedule(schedule)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      {hasPermission('schedule_write') && (
+                        <>
+                          <button
+                            onClick={() => handleEditSchedule(schedule)}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSchedule(schedule.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add Schedule Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Add New Schedule</h3>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Course Code</label>
+                    <input
+                      type="text"
+                      defaultValue={selectedEvent?.courseCode || ''}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., CS-101"
+                    />
                   </div>
-                  
-                  <div className="ml-4">
-                    <button className="text-blue-600 hover:text-blue-800">
-                      <Eye className="h-4 w-4" />
-                    </button>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Course Name</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., Introduction to Computer Science"
+                    />
                   </div>
                 </div>
-              ))}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Select Instructor</option>
+                    {filterOptions.instructors.map(instructor => (
+                      <option key={instructor} value={instructor}>{instructor}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
+                    <select 
+                      defaultValue={selectedEvent?.dayOfWeek || ''}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select Day</option>
+                      {weekDays.map(day => (
+                        <option key={day} value={day}>{day}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                    <select 
+                      defaultValue={selectedEvent?.startTime || ''}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select Time</option>
+                      {timeSlots.map(time => (
+                        <option key={time} value={time}>{time}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      <option value="">Select Time</option>
+                      {timeSlots.map(time => (
+                        <option key={time} value={time}>{time}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Room</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      <option value="">Select Room</option>
+                      {filterOptions.rooms.map(room => (
+                        <option key={room} value={room}>{room}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="30"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Additional notes..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  Save Schedule
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Legend */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Department Legend</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {departments.map(dept => (
-            <div key={dept} className="flex items-center">
-              <div 
-                className="w-4 h-4 rounded-full mr-2"
-                style={{ backgroundColor: getColorForDepartment(dept) }}
-              ></div>
-              <span className="text-sm text-gray-700">{dept}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Event Detail Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-          <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">{selectedEvent.courseName}</h2>
+      {/* Edit Schedule Modal */}
+      {showEditModal && selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Edit Schedule: {selectedEvent.courseCode}
+                </h3>
                 <button
-                  onClick={() => setSelectedEvent(null)}
+                  onClick={() => setShowEditModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="h-6 w-6" />
                 </button>
               </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Course Code</label>
+                    <input
+                      type="text"
+                      defaultValue={selectedEvent.courseCode}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Course Name</label>
+                    <input
+                      type="text"
+                      defaultValue={selectedEvent.courseName}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
+                  <select 
+                    defaultValue={selectedEvent.instructor}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {filterOptions.instructors.map(instructor => (
+                      <option key={instructor} value={instructor}>{instructor}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
+                    <select 
+                      defaultValue={selectedEvent.dayOfWeek}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {weekDays.map(day => (
+                        <option key={day} value={day}>{day}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                    <select 
+                      defaultValue={selectedEvent.startTime}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {timeSlots.map(time => (
+                        <option key={time} value={time}>{time}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                    <select 
+                      defaultValue={selectedEvent.endTime}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {timeSlots.map(time => (
+                        <option key={time} value={time}>{time}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Room</label>
+                    <select 
+                      defaultValue={selectedEvent.room}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {filterOptions.rooms.map(room => (
+                        <option key={room} value={room}>{room}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="500"
+                      defaultValue={selectedEvent.capacity}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select 
+                    defaultValue={selectedEvent.status}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea
+                    rows={3}
+                    defaultValue={selectedEvent.notes}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Additional notes..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-              <div className="space-y-3">
-                <div className="flex items-center">
-                  <BookOpen className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600">Course Code:</span>
-                  <span className="ml-auto text-sm font-medium text-gray-900">{selectedEvent.courseCode}</span>
+      {/* Schedule Details Modal */}
+      {showDetailsModal && selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {selectedEvent.courseCode} - {selectedEvent.courseName}
+                </h3>
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Course Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Course Code:</span>
+                        <span className="font-medium">{selectedEvent.courseCode}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Course Name:</span>
+                        <span className="font-medium">{selectedEvent.courseName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Instructor:</span>
+                        <span className="font-medium">{selectedEvent.instructor}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Department:</span>
+                        <span className="font-medium">{selectedEvent.department}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Credits:</span>
+                        <span className="font-medium">{selectedEvent.credits}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Schedule Details</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Day:</span>
+                        <span className="font-medium">{selectedEvent.dayOfWeek}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Time:</span>
+                        <span className="font-medium">{selectedEvent.startTime} - {selectedEvent.endTime}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Room:</span>
+                        <span className="font-medium">{selectedEvent.room}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Semester:</span>
+                        <span className="font-medium">{selectedEvent.semester}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Type:</span>
+                        <span className="font-medium">{selectedEvent.type}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="flex items-center">
-                  <Users className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600">Instructor:</span>
-                  <span className="ml-auto text-sm font-medium text-gray-900">{selectedEvent.instructor}</span>
-                </div>
-                
-                <div className="flex items-center">
-                  <Clock className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600">Time:</span>
-                  <span className="ml-auto text-sm font-medium text-gray-900">
-                    {selectedEvent.startTime} - {selectedEvent.endTime}
-                  </span>
-                </div>
-                
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600">Location:</span>
-                  <span className="ml-auto text-sm font-medium text-gray-900">{selectedEvent.room}</span>
-                </div>
-                
-                {selectedEvent.enrolled && (
-                  <div className="flex items-center">
-                    <Users className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-sm text-gray-600">Enrollment:</span>
-                    <span className="ml-auto text-sm font-medium text-gray-900">
-                      {selectedEvent.enrolled}/{selectedEvent.capacity}
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Enrollment</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Enrolled:</span>
+                        <span className="font-medium">{selectedEvent.enrolled}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Capacity:</span>
+                        <span className="font-medium">{selectedEvent.capacity}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Utilization:</span>
+                        <span className="font-medium">
+                          {Math.round((selectedEvent.enrolled / selectedEvent.capacity) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${Math.min((selectedEvent.enrolled / selectedEvent.capacity) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Status</h4>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      selectedEvent.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {selectedEvent.status}
                     </span>
                   </div>
-                )}
-                
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600">Type:</span>
-                  <span className="ml-auto text-sm font-medium text-gray-900 capitalize">{selectedEvent.type}</span>
+
+                  {selectedEvent.notes && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Notes</h4>
+                      <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                        {selectedEvent.notes}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  onClick={() => setSelectedEvent(null)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  onClick={() => setShowDetailsModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Close
                 </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  Edit Event
-                </button>
+                {hasPermission('schedule_write') && (
+                  <button
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      setShowEditModal(true);
+                    }}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit Schedule
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -582,20 +1048,27 @@ const ClassTimetable = () => {
       )}
 
       {/* Empty State */}
-      {filteredSchedules.length === 0 && (
-        <div className="text-center py-12">
+      {filteredSchedules.length === 0 && !loading && (
+        <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
           <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No classes scheduled</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No schedules found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Try adjusting your filters or add a new class to the schedule.
+            {searchTerm || Object.values(filters).some(f => f !== 'all') 
+              ? 'Try adjusting your search or filters.'
+              : 'Get started by adding your first class schedule.'
+            }
           </p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="mt-4 flex items-center mx-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Class
-          </button>
+          {hasPermission('schedule_write') && (
+            <div className="mt-6">
+              <button
+                onClick={handleAddSchedule}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+              >
+                <Plus className="h-4 w-4" />
+                Add Schedule
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
