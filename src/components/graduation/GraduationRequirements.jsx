@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
-  ClipboardListIcon,
+  ClipboardDocumentListIcon,
   AcademicCapIcon,
   BookOpenIcon,
   PlusIcon,
@@ -204,7 +204,7 @@ const GraduationRequirements = () => {
       case 'course-specific': return <BookOpenIcon className="h-4 w-4" />;
       case 'credit-based': return <AcademicCapIcon className="h-4 w-4" />;
       case 'gpa-based': return <CheckCircleIcon className="h-4 w-4" />;
-      default: return <ClipboardListIcon className="h-4 w-4" />;
+      default: return <ClipboardDocumentListIcon className="h-4 w-4" />;
     }
   };
 
@@ -635,7 +635,7 @@ const GraduationRequirements = () => {
 
             {filteredRequirements.length === 0 && (
               <div className="text-center py-12">
-                <ClipboardListIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <ClipboardDocumentListIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No requirements found</h3>
                 <p className="text-gray-600">Try adjusting your search criteria or add a new requirement.</p>
               </div>
