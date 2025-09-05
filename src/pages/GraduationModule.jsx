@@ -4,9 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  GraduationCapIcon,
   UserGroupIcon,
-  ClipboardListIcon,
+  ClipboardDocumentListIcon,
   CalendarIcon,
   DocumentTextIcon,
   UsersIcon,
@@ -27,7 +26,7 @@ const TranscriptServices = React.lazy(() => import('../components/graduation/Tra
 const AlumniRelations = React.lazy(() => import('../components/graduation/AlumniRelations'));
 
 // Placeholder component for development
-const PlaceholderComponent = ({ title, description, icon: Icon = GraduationCapIcon }) => (
+const PlaceholderComponent = ({ title, description, icon: Icon = AcademicCapIcon }) => (
   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
     <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
       <Icon className="h-8 w-8 text-gray-400" />
@@ -78,7 +77,7 @@ const GraduationModule = () => {
       id: 'requirements',
       name: 'Requirements',
       path: '/graduation/requirements',
-      icon: ClipboardListIcon,
+      icon: ClipboardDocumentListIcon,
       description: 'Manage degree requirements',
       requiresPermission: 'graduation.write'
     },
@@ -213,7 +212,7 @@ const GraduationModule = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-purple-100 rounded-lg">
-              <GraduationCapIcon className="h-8 w-8 text-purple-600" />
+              <AcademicCapIcon className="h-8 w-8 text-purple-600" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Graduation Tracking</h1>
@@ -322,7 +321,7 @@ const GraduationModule = () => {
               <Route path="/" element={
                 <div className="space-y-6">
                   <div className="text-center py-12">
-                    <GraduationCapIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <AcademicCapIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">Graduation Tracking Overview</h3>
                     <p className="text-gray-600 mb-6">
                       Select a tab above to manage graduation requirements, track student progress, or view ceremonies.
@@ -366,7 +365,7 @@ const GraduationModule = () => {
                   <PlaceholderComponent 
                     title="Graduation Requirements"
                     description="Manage degree requirements and academic standards."
-                    icon={ClipboardListIcon}
+                    icon={ClipboardDocumentListIcon}
                   />
                 )
               } />
